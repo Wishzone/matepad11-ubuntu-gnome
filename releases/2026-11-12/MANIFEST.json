@@ -1,0 +1,43 @@
+{
+  "name": "dby-w09-ubuntu-20261112",
+  "date": "2026-11-12",
+  "device": "Huawei MatePad 11 (DBY-W09)",
+  "soc": "Qualcomm SM8250 / Snapdragon 865",
+  "distribution": "Ubuntu 26.04.1 LTS (Resolute Raccoon), arm64",
+  "desktop": "GNOME Shell 50.1 + GDM 50.1 (Wayland)",
+  "kernel": "7.0.14-dby-w09",
+  "boot_bundle": {
+    "file": "boot-kernel-penrot-20261112.img",
+    "sha256": "91556d3f249b7d32466c30795a2de45bd4cc0bf13a6743e926bf0557e1ff9789",
+    "kernel_image_gz_sha256": "8acac6aa9d43c0416ac3c92a879921fe28a6691991eb1573db3b635adc1e0067",
+    "dtb": "stock DTB + front GC8054 + RTC SDAM + keyboard-dock disabled",
+    "ramdisk": "original stock ramdisk"
+  },
+  "rootfs_image": {
+    "file": "ubuntu-26.04-gnome-dby-w09-20261112.img.xz",
+    "sha256": "ba970b27fd1583f5d0fc44d135aaedba85951a0a0509a419c1b61495b3ea959b",
+    "size": 1252021360,
+    "note": "Ubuntu Sans Mono included; persistent SYH62758 backlight, SLPI suspend hook, and filtered touchscreen gesture service staged"
+  },
+  "verified": [
+    "boot to graphical.target in about 9 s",
+    "GDM/GNOME Wayland, freedreno GPU",
+    "panel rotation and SYH62758 brightness",
+    "finger touch follows rotation in all four orientations",
+    "M-Pencil follows rotation in all four orientations",
+    "auto-rotation with and without the magnetic keyboard",
+    "hardware RTC reads real time and persists",
+    "front (GC8054, GRBG) and rear (OV13B10) cameras through PipeWire",
+    "audio hardware sink at 1.0",
+    "Bluetooth keyboard and M-Pencil",
+    "Wi-Fi, SSH, suspend/resume, charging",
+    "SLPI stop/start resume flow passed an RTC wake; no sensor DSP fatal observed",
+    "touch gesture filter packaged; Type-A/Type-B synthetic tests pass; physical verification pending"
+  ],
+  "known_open": [
+    "USB-C host/DP/HDMI with a powered dock",
+    "M-Pencil magnetic charging and vibrator",
+    "WirePlumber 0.5 speaker routing/EQ",
+    "signed release and apt snapshot pinning"
+  ]
+}

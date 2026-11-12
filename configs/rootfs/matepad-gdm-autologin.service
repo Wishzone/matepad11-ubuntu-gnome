@@ -1,0 +1,13 @@
+[Unit]
+Description=MatePad: translate the installer's autologin choice for GDM
+DefaultDependencies=no
+After=local-fs.target
+Before=gdm.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/matepad-gdm-autologin
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

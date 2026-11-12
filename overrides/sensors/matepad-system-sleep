@@ -1,0 +1,69 @@
+#!/bin/sh
+# Stop SLPI cleanly before s2idle. Its FastRPC udev rule starts the daemon on wake.
+set -u
+
+case "${2:-}" in
+	suspend|hibernate|hybrid-sleep|suspend-then-hibernate) ;;
+	*) exit 0 ;;
+esac
+
+STATE=${MATEPAD_SENSORD_PM_STATE:-/run/matepad-sensord-pm}
+UNIT=${MATEPAD_SENSORD_UNIT:-matepad-sensord.service}
+HEXAGON_UNIT=${MATEPAD_HEXAGONRPC_UNIT:-hexagonrpcd-sdsp.service}
+REMOTE_STATE=${MATEPAD_REMOTEPROC_STATE:-/sys/class/remoteproc/remoteproc0/state}
+STOP_MARKER=${MATEPAD_SLPI_STOP_MARKER:-/run/matepad-slpi-suspend-stopped}
+pid=$(systemctl show "$UNIT" -p MainPID --value 2>/dev/null || true)
+case "${1:-}" in
+	pre)
+		case "$pid" in ''|0|*[!0-9]*) ;; *)
+			kill -USR1 "$pid" 2>/dev/null || true
+			i=0
+			while [ "$i" -lt 30 ]; do
+				[ "$(cat "$STATE" 2>/dev/null || true)" = suspended ] && break
+				sleep 0.1
+				i=$((i + 1))
+			done
+			if [ "$(cat "$STATE" 2>/dev/null || true)" != suspended ]; then
+				echo "matepad-system-sleep: sensor pause acknowledgement timed out" >&2
+			fi
+			;;
+		esac
+
+		if [ -r "$REMOTE_STATE" ] && [ "$(cat "$REMOTE_STATE" 2>/dev/null)" = running ]; then
+			systemctl stop "$HEXAGON_UNIT" 2>/dev/null || true
+			: > "$STOP_MARKER"
+			if printf 'stop\n' | tee "$REMOTE_STATE" >/dev/null; then
+				i=0
+				while [ "$i" -lt 50 ]; do
+					[ "$(cat "$REMOTE_STATE" 2>/dev/null)" = offline ] && break
+					sleep 0.1
+					i=$((i + 1))
+				done
+			fi
+			if [ "$(cat "$REMOTE_STATE" 2>/dev/null)" != offline ]; then
+				echo "matepad-system-sleep: SLPI did not confirm a clean stop" >&2
+			fi
+		fi
+		;;
+	post)
+		if [ -e "$STOP_MARKER" ]; then
+			if [ "$(cat "$REMOTE_STATE" 2>/dev/null)" = offline ]; then
+				printf 'start\n' | tee "$REMOTE_STATE" >/dev/null || true
+			fi
+			i=0
+			while [ "$i" -lt 100 ]; do
+				[ "$(cat "$REMOTE_STATE" 2>/dev/null)" = running ] && break
+				sleep 0.1
+				i=$((i + 1))
+			done
+			# The fastrpc-sdsp udev rule starts HEXAGON_UNIT when its device
+			# appears. Do not wait for the daemon here: returning promptly lets
+			# logind finish the wake transaction and keeps the power key responsive.
+			rm -f "$STOP_MARKER"
+		fi
+		case "$pid" in ''|0|*[!0-9]*) exit 0 ;; esac
+		kill -USR2 "$pid" 2>/dev/null || true
+		;;
+esac
+
+exit 0

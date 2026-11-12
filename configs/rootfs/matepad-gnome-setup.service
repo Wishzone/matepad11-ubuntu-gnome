@@ -1,0 +1,12 @@
+[Unit]
+Description=MatePad: first-login GNOME settings
+After=gnome-session.target
+PartOf=gnome-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/matepad-gnome-user-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=gnome-session.target

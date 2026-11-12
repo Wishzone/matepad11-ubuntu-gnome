@@ -1,0 +1,37 @@
+{
+  "name": "ubuntu-26.04-gnome-dby-w09-20261111",
+  "date": "2026-11-11",
+  "device": "Huawei MatePad 11 (DBY-W09)",
+  "soc": "Qualcomm SM8250 / Snapdragon 865",
+  "distribution": "Ubuntu 26.04.1 LTS (Resolute Raccoon)",
+  "desktop": "GNOME Shell 50.1 + GDM 50.1 (Wayland)",
+  "kernel": "7.0.14-dby-w09",
+  "image": {
+    "file": "ubuntu-26.04-gnome-dby-w09-20261111.img.xz",
+    "sha256": "3e85770cc44387657d8430f7d7eef5aec228cbf85b3de6415f12e39cc252defd",
+    "compressed_bytes": 1263713984,
+    "uncompressed_bytes": 6406393856,
+    "filesystem": "ext4",
+    "label": "LINUX70ROOT",
+    "partition_table": null
+  },
+  "install": "MicroSD via svesnav/dby-w09-installer; no host fastboot writes",
+  "verified": [
+    "rootfs build",
+    "ext4 ownership/mode manifest",
+    "QEMU multi-user boot with the DBY kernel",
+    "no FAILED unit at multi-user"
+  ],
+  "not_verified": [
+    "real-device ABL boot",
+    "GDM/GNOME graphical session",
+    "panel rotation/backlight",
+    "GPU",
+    "touch/pen",
+    "Wi-Fi/Bluetooth",
+    "audio",
+    "sensors",
+    "suspend",
+    "camera"
+  ]
+}

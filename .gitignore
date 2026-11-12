@@ -1,0 +1,42 @@
+# Generated root filesystems, images, upstream clones and host tools.
+/build/
+/upstream/
+/tools/
+/logs/
+*.img
+*.img.xz
+*.img.xz.sha256
+*.img.size
+*.tar
+*.tar.gz
+*.deb
+*.so
+
+# Kernel/module and userspace build products.
+*.o
+*.mod
+*.mod.c
+*.mod.o
+Module.symvers
+modules.order
+.*.cmd
+.tmp_versions/
+
+# Python, editor, and OS noise.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# Local credentials and machine-specific state.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx

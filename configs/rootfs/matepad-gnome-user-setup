@@ -1,0 +1,66 @@
+#!/bin/sh
+# First-login GNOME settings for the MatePad 11 (DBY-W09).
+#
+# The installer writes the account, locale and XKB layout without knowing
+# about GNOME. This user service imports those settings once, and enables the
+# tablet-friendly defaults: readable scaling, the on-screen keyboard, and the
+# touchpad-less "tap to click" behaviour already provided by libinput.
+set -eu
+
+STAMP="$HOME/.config/matepad-gnome-setup-done"
+[ -e "$STAMP" ] && exit 0
+mkdir -p "$HOME/.config"
+
+log() { echo "matepad-gnome-user-setup: $*"; }
+
+# GNOME reads the XKB layout from its own GSettings, not /etc/default/keyboard.
+layout=$(sed -n 's/^XKBLAYOUT="\([^"]*\)".*/\1/p' /etc/default/keyboard 2>/dev/null | head -1)
+layout=${layout:-us}
+sources=""
+for l in $(echo "$layout" | tr ',' ' '); do
+	case "$l" in
+	us|gb) l=xkb:us ;; ua) l=xkb:ua ;; de) l=xkb:de ;; fr) l=xkb:fr ;;
+	esac
+	case "$l" in
+	xkb:*) xkb=${l#xkb:} ;;
+	*) xkb=$l ;;
+	esac
+	[ -n "$sources" ] && sources="$sources, "
+	sources="$sources('xkb', '$xkb')"
+done
+# Chinese locale: add IBus Pinyin when installed (GNOME's default IME).
+if grep -qi '^LANG=.*zh_CN' /etc/default/locale 2>/dev/null &&
+   [ -x /usr/libexec/ibus-engine-libpinyin ]; then
+	sources="$sources, ('ibus', 'libpinyin')"
+fi
+[ -n "$sources" ] && gsettings set org.gnome.desktop.input-sources sources "[$sources]"
+
+# 2560x1600 on 11": 2x is the natural scale. Mutter on Wayland uses the
+# per-monitor scale from monitors.xml; text-scaling-factor gives a readable
+# fallback for the first session and for XWayland clients.
+gsettings set org.gnome.desktop.interface text-scaling-factor 1.5
+gsettings set org.gnome.desktop.interface scaling-factor 2 2>/dev/null || true
+gsettings set org.gnome.desktop.interface enable-animations true
+
+# Tablet: on-screen keyboard available, touch-friendly titlebar buttons, and
+# no hot-corner accidentally triggered by a palm.
+gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true
+gsettings set org.gnome.desktop.interface enable-hot-corners false
+gsettings set org.gnome.desktop.wm.preferences button-layout 'appmenu:minimize,maximize,close'
+
+# Battery is the primary power source; show the percentage in the status menu.
+gsettings set org.gnome.desktop.interface show-battery-percentage true
+
+# Power key: suspend (logind is configured the same way in
+# /etc/systemd/logind.conf.d/50-matepad.conf).
+gsettings set org.gnome.settings-daemon.plugins.power power-button-action 'suspend'
+
+# Flashlight: enable the system-wide quick settings extension for this user.
+# The extension appears once GNOME Shell has scanned it at session start.
+if command -v gnome-extensions >/dev/null 2>&1 &&
+   gnome-extensions list 2>/dev/null | grep -qx 'matepad-flashlight@dby-w09'; then
+	gnome-extensions enable matepad-flashlight@dby-w09 2>/dev/null || true
+fi
+
+date -u > "$STAMP"
+log "done (layout=$layout)"

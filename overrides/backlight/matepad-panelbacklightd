@@ -1,0 +1,218 @@
+#!/usr/bin/python3
+"""Persist and restore the MatePad SYH62758 panel brightness.
+
+systemd-backlight restores its saved value during early boot. This daemon
+adopts that value instead of replacing it with the driver default, tracks later
+user changes, and follows DSI DPMS across screen blanking and system sleep.
+"""
+import glob
+import os
+import sys
+import tempfile
+import time
+
+BACKLIGHT = os.environ.get(
+    "MATEPAD_BACKLIGHT_PATH",
+    "/sys/class/backlight/panel0-backlight/brightness",
+)
+MAX_BRIGHTNESS = os.environ.get(
+    "MATEPAD_BACKLIGHT_MAX_PATH",
+    "/sys/class/backlight/panel0-backlight/max_brightness",
+)
+STATE_FILE = os.environ.get(
+    "MATEPAD_BACKLIGHT_STATE",
+    "/var/lib/matepad/panel-brightness",
+)
+SYSTEMD_STATE_GLOB = os.environ.get(
+    "MATEPAD_SYSTEMD_BACKLIGHT_GLOB",
+    "/var/lib/systemd/backlight/*:backlight:panel0-backlight",
+)
+DPMS_GLOB = os.environ.get("MATEPAD_DPMS_GLOB", "/sys/class/drm/card*-DSI-1/dpms")
+DEFAULT = int(os.environ.get("MATEPAD_DEFAULT_BRIGHTNESS", "115"))
+POLL = float(os.environ.get("MATEPAD_BACKLIGHT_POLL", "0.5"))
+
+
+def log(msg):
+    print("matepad-panelbacklightd: %s" % msg, flush=True)
+
+
+def read_int(path):
+    try:
+        with open(path, "r", encoding="ascii") as fh:
+            return int(fh.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def brightness_limit():
+    return read_int(MAX_BRIGHTNESS) or 255
+
+
+def valid_brightness(value):
+    return value is not None and 0 < value <= brightness_limit()
+
+
+def get_brightness():
+    return read_int(BACKLIGHT)
+
+
+def set_brightness(value):
+    if value is None or value < 0 or value > brightness_limit():
+        return False
+    try:
+        with open(BACKLIGHT, "w", encoding="ascii") as fh:
+            fh.write("%d\n" % value)
+        return True
+    except OSError as exc:
+        log("cannot write %s: %s" % (BACKLIGHT, exc))
+        return False
+
+
+def read_state_file():
+    value = read_int(STATE_FILE)
+    return value if valid_brightness(value) else None
+
+
+def read_systemd_state():
+    candidates = []
+    for path in glob.glob(SYSTEMD_STATE_GLOB):
+        value = read_int(path)
+        if valid_brightness(value):
+            try:
+                candidates.append((os.stat(path).st_mtime_ns, value))
+            except OSError:
+                continue
+    return max(candidates)[1] if candidates else None
+
+
+def preferred_brightness(current=None):
+    return (
+        read_state_file()
+        or read_systemd_state()
+        or (current if valid_brightness(current) else None)
+        or min(max(DEFAULT, 1), brightness_limit())
+    )
+
+
+def save_brightness(value):
+    if not valid_brightness(value):
+        return False
+    parent = os.path.dirname(STATE_FILE)
+    try:
+        os.makedirs(parent, mode=0o755, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=".panel-brightness.", dir=parent)
+        try:
+            with os.fdopen(fd, "w", encoding="ascii") as fh:
+                fh.write("%d\n" % value)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.chmod(temporary, 0o644)
+            os.replace(temporary, STATE_FILE)
+        finally:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+        return True
+    except OSError as exc:
+        log("cannot persist brightness %s: %s" % (value, exc))
+        return False
+
+
+def panel_off():
+    """True while all DSI panels are blanked; None when no panel is exposed."""
+    states = []
+    for path in glob.glob(DPMS_GLOB):
+        try:
+            with open(path, "r", encoding="ascii") as fh:
+                states.append(fh.read().strip())
+        except OSError:
+            continue
+    if not states:
+        return None
+    return all(state != "On" for state in states)
+
+
+class BacklightFollower:
+    def __init__(self):
+        self.saved = read_state_file() or read_systemd_state()
+        self.panel_is_off = None
+
+    def step(self):
+        off = panel_off()
+        if off is None:
+            return
+
+        current = get_brightness()
+        if off:
+            if self.panel_is_off is False and valid_brightness(current):
+                self.saved = current
+                save_brightness(current)
+            elif not valid_brightness(self.saved):
+                self.saved = preferred_brightness(current)
+                save_brightness(self.saved)
+            if current != 0:
+                set_brightness(0)
+            if self.panel_is_off is not True:
+                log("panel off -> backlight off (saved %s)" % self.saved)
+            self.panel_is_off = True
+            return
+
+        if self.panel_is_off is not False:
+            if not valid_brightness(self.saved):
+                self.saved = preferred_brightness(current)
+            if current != self.saved:
+                set_brightness(self.saved)
+            save_brightness(self.saved)
+            log("panel on -> backlight %s" % self.saved)
+        elif valid_brightness(current) and current != self.saved:
+            # The GNOME slider or brightness keys changed the user's setting.
+            self.saved = current
+            save_brightness(current)
+            log("user brightness -> %s (saved)" % current)
+
+        self.panel_is_off = False
+
+
+def restore_after_resume():
+    """Restore only when the DSI display is on; preserve a deliberately dark panel."""
+    off = panel_off()
+    if off is not False:
+        return 0
+    value = preferred_brightness(get_brightness())
+    current = get_brightness()
+    if current != value and set_brightness(value):
+        log("resume -> restored backlight %s" % value)
+    save_brightness(value)
+    return 0
+
+
+def save_before_suspend():
+    current = get_brightness()
+    if valid_brightness(current):
+        save_brightness(current)
+        log("suspend -> saved backlight %s" % current)
+    return 0
+
+
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--restore":
+        return restore_after_resume()
+    if len(sys.argv) == 2 and sys.argv[1] == "--save":
+        return save_before_suspend()
+    if len(sys.argv) != 1:
+        print("Usage: %s [--save|--restore]" % sys.argv[0], file=sys.stderr)
+        return 2
+
+    follower = BacklightFollower()
+    log("watching DSI DPMS; saved brightness=%s" % follower.saved)
+    while True:
+        if not os.path.exists(BACKLIGHT):
+            time.sleep(5)
+            continue
+        follower.step()
+        time.sleep(POLL)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

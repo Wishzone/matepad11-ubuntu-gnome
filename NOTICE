@@ -1,0 +1,35 @@
+DBY-W09 Ubuntu 26.04 GNOME port — third-party components
+
+This project builds on and redistributes no Huawei firmware. It uses:
+
+- Linux kernel and device-tree bindings: GPL-2.0-only. The DBY board port,
+  panel driver, touch bridge, fuel gauge and sound patches come from
+  https://github.com/svesnav/linux-dby-w09 (GPL-2.0).
+- `kubuntu-dby-w09` hardware services and installer:
+  https://github.com/svesnav/kubuntu-dby-w09. The upstream repository states
+  its own licensing; the staged user-space helpers retain their notices.
+- `dby-w09-installer`: https://github.com/svesnav/dby-w09-installer.
+- `hexagonrpc` (linux-msm): see its COPYING file in `upstream/hexagonrpc`.
+- `syh62758_bl.c` in `overrides/backlight/`: GPL-2.0-only, derived from the
+  stock Huawei `hw_syh62758` register sequence and the existing DBY-W09
+  backlight work. The module is built for kernel 7.0.14-dby-w09.
+- `overrides/touchscreen/matepad-touch-rightclick.c`: GPL-2.0; filters the
+  touchscreen event stream and emits pointer/scroll gestures through uinput.
+- `overrides/bluez/`: the Ubuntu 5.85 BlueZ source package patched with
+  `hog-ccc-read-error.patch` (GPL-2.0); the `.deb` files are local builds of
+  that patched source for arm64. The patch and its rationale are included.
+- `overrides/upower/`: a small MIT-licensed LD_PRELOAD compatibility shim for
+  UPower's handling of the Huawei gauge current sign. It is built from the
+  included C source.
+- Google Chrome is **not** redistributed by this project. The device session
+  installed Google's official arm64 `.deb` from `dl.google.com`; its license
+  and repository key remain Google's. Cheese is not present in Ubuntu 26.04;
+  `gnome-snapshot` and `guvcview` are used instead.
+- Ubuntu 26.04 packages: their own copyright files under
+  `/usr/share/doc/*/copyright` in the rootfs.
+- Mesa, GNOME, PipeWire, systemd, NetworkManager, BlueZ: upstream licenses,
+  installed from the Ubuntu archive.
+
+No Huawei vendor file (firmware, `aptouch_daemon`, camera HAL, etc.) is stored
+in this repository or in the image. The installer copies those files from the
+user's own tablet at install time; the image contains only the list of paths.

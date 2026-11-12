@@ -1,0 +1,11 @@
+# Upstream repositories used by this project.
+#
+# Format: <name> <url> <commit>
+# Pinned to the commits that were used for the tested 2026-11-12 image.
+# Run scripts/fetch-upstream.sh to check them out; scripts/apply-patches.sh
+# then applies the local touch driver patch.
+
+linux-dby-w09       https://github.com/svesnav/linux-dby-w09.git       116cb1fe06110543ce03217e8bd8f35c12ca89c3
+kubuntu-dby-w09     https://github.com/svesnav/kubuntu-dby-w09.git     da3db9f6bc5c3c519eb79693f80f571a11d86b4a
+dby-w09-installer   https://github.com/svesnav/dby-w09-installer.git   c58d8042e1df1f3296b4ee068caa54123da6777c
+hexagonrpc          https://github.com/linux-msm/hexagonrpc.git        da7a3742ab8d5273a281b70ee11f16fb2cb6a690

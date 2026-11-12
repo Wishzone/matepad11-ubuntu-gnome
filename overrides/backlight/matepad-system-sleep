@@ -1,0 +1,21 @@
+#!/bin/sh
+# systemd-sleep hook: keep the user's brightness through kernel backlight reset.
+set -u
+
+case "${2:-}" in
+	suspend|hibernate|hybrid-sleep|suspend-then-hibernate) ;;
+	*) exit 0 ;;
+esac
+
+DAEMON=${MATEPAD_BACKLIGHT_DAEMON:-/usr/local/sbin/matepad-panelbacklightd}
+
+case "${1:-}" in
+	pre)
+		"$DAEMON" --save || true
+		;;
+	post)
+		"$DAEMON" --restore || true
+		;;
+esac
+
+exit 0

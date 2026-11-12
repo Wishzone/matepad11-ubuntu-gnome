@@ -1,0 +1,15 @@
+[Unit]
+Description=MatePad panel backlight persistence and DPMS follower
+After=systemd-backlight@backlight:panel0-backlight.service matepad-modules.service
+Wants=systemd-backlight@backlight:panel0-backlight.service matepad-modules.service
+
+[Service]
+Type=simple
+StateDirectory=matepad
+StateDirectoryMode=0755
+ExecStart=/usr/local/sbin/matepad-panelbacklightd
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

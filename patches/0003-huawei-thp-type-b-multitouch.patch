@@ -1,0 +1,66 @@
+diff --git a/touch/huawei-thp-lite.c b/touch/huawei-thp-lite.c
+index e45cedf..4bf9895 100644
+--- a/touch/huawei-thp-lite.c
++++ b/touch/huawei-thp-lite.c
+@@ -32,6 +32,7 @@
+ #include <linux/fs.h>
+ #include <linux/gpio/consumer.h>
+ #include <linux/input.h>
++#include <linux/input/mt.h>
+ #include <linux/interrupt.h>
+ #include <linux/miscdevice.h>
+ #include <linux/module.h>
+@@ -601,21 +602,22 @@ static void thp_report(struct thp *t, const struct thp_touch_data *d)
+ 
+ 		if (!f->valid)
+ 			continue;
++		/* touch[] is Huawei's fixed finger-slot array. */
++		input_mt_slot(in, i);
++		/* Let the input core assign one tracking ID per active slot. */
++		input_mt_report_slot_state(in, f->tool_type, true);
+ 		input_report_abs(in, ABS_MT_POSITION_X, f->x);
+ 		input_report_abs(in, ABS_MT_POSITION_Y, f->y);
+ 		input_report_abs(in, ABS_MT_PRESSURE, f->pressure);
+-		input_report_abs(in, ABS_MT_TRACKING_ID, f->tracking_id);
+ 		input_report_abs(in, ABS_MT_TOUCH_MAJOR, f->major);
+ 		input_report_abs(in, ABS_MT_TOUCH_MINOR, f->minor);
+ 		input_report_abs(in, ABS_MT_ORIENTATION, f->orientation);
+-		input_report_abs(in, ABS_MT_TOOL_TYPE, f->tool_type);
+ 		input_report_abs(in, ABS_MT_BLOB_ID, f->hand_side);
+-		input_mt_sync(in);
+ 	}
++	input_mt_sync_frame(in);
+ 	if (d->t_num > 0) {
+ 		input_report_key(in, BTN_TOUCH, 1);
+ 	} else {
+-		input_mt_sync(in);
+ 		input_report_key(in, BTN_TOUCH, 0);
+ 	}
+ 	input_sync(in);
+@@ -925,6 +927,7 @@ static int thp_input_register(struct thp *t)
+ 	struct input_dev *in;
+ 	int mx = t->input_cfg.abs_max_x * t->magnification - 1;
+ 	int my = t->input_cfg.abs_max_y * t->magnification - 1;
++	int ret;
+ 
+ 	in = devm_input_allocate_device(&t->spi->dev);
+ 	if (!in)
+@@ -936,13 +939,17 @@ static int thp_input_register(struct thp *t)
+ 	__set_bit(BTN_TOUCH, in->keybit);
+ 	__set_bit(BTN_TOOL_FINGER, in->keybit);
+ 	__set_bit(INPUT_PROP_DIRECT, in->propbit);
++	/* Keep Huawei's 10-finger ioctl ABI; use Type-B slots for input events. */
++	ret = input_mt_init_slots(in, THP_MAX_FINGERS,
++				  INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
++	if (ret)
++		return ret;
+ 	input_set_abs_params(in, ABS_X, 0, mx, 0, 0);
+ 	input_set_abs_params(in, ABS_Y, 0, my, 0, 0);
+ 	input_set_abs_params(in, ABS_PRESSURE, 0, t->input_cfg.abs_max_z, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_POSITION_X, 0, mx, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_POSITION_Y, 0, my, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_PRESSURE, 0, t->input_cfg.abs_max_z, 0, 0);
+-	input_set_abs_params(in, ABS_MT_TRACKING_ID, 0, t->input_cfg.tracking_id_max - 1, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_TOUCH_MAJOR, 0, t->input_cfg.major_max, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_TOUCH_MINOR, 0, t->input_cfg.minor_max, 0, 0);
+ 	input_set_abs_params(in, ABS_MT_ORIENTATION, t->input_cfg.orientation_min,

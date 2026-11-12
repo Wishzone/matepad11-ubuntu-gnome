@@ -1,0 +1,172 @@
+diff --git a/touch/huawei-thp-lite.c b/touch/huawei-thp-lite.c
+index e45cedf..7b1077d 100644
+--- a/touch/huawei-thp-lite.c
++++ b/touch/huawei-thp-lite.c
+@@ -247,6 +247,8 @@ struct thp {
+ 
+ 	struct input_dev *input;
+ 	struct input_dev *pen;
++	struct input_dev *tabletmode;
++	unsigned int rotation;		/* 0=right-up, 1=90cw, 2=180, 3=90ccw */
+ 
+ 	/* M-Pencil (huawei_thp_mt_wrapper.c stylus3 interface) */
+ 	u32 stylus3_status;
+@@ -301,6 +303,8 @@ static int thp_spi_xfer(struct thp *t, const void *tx, void *rx, size_t len)
+ 	struct spi_transfer xfer = { .tx_buf = tx, .rx_buf = rx, .len = len };
+ 	int ret;
+ 
++	/* Stock THP waits 1000 ns after driving CS high before each transfer. */
++	ndelay(1000);
+ 	mutex_lock(&t->spi_lock);
+ 	ret = spi_sync_transfer(t->spi, &xfer, 1);
+ 	mutex_unlock(&t->spi_lock);
+@@ -624,10 +628,52 @@ static void thp_report(struct thp *t, const struct thp_touch_data *d)
+ static void thp_status_changed(struct thp *t);
+ 
+ /* thp_mt_wrapper_ioctl_report_pen() / thp_report_pen_event() */
++static void thp_rotate_pen(struct thp *t, int *x, int *y)
++{
++	long long u = (long long)*x * 10000 / THP_PEN_MAX_X;
++	long long v = (long long)*y * 10000 / THP_PEN_MAX_Y;
++	long long u2, v2;
++
++	if (u < 0)
++		u = 0;
++	if (u > 10000)
++		u = 10000;
++	if (v < 0)
++		v = 0;
++	if (v > 10000)
++		v = 10000;
++
++	switch (t->rotation) {
++	case 1:		/* 90 degrees clockwise */
++		u2 = 10000 - v;
++		v2 = u;
++		break;
++	case 2:		/* 180 degrees */
++		u2 = 10000 - u;
++		v2 = 10000 - v;
++		break;
++	case 3:		/* 90 degrees counter-clockwise */
++		u2 = v;
++		v2 = 10000 - u;
++		break;
++	default:
++		u2 = u;
++		v2 = v;
++		break;
++	}
++
++	*x = u2 * THP_PEN_MAX_X / 10000;
++	*y = v2 * THP_PEN_MAX_Y / 10000;
++}
++
+ static void thp_report_pen(struct thp *t, const struct thp_pen_data *d)
+ {
+ 	struct input_dev *in = t->pen;
+ 	int i;
++	int x = d->tool.x;
++	int y = d->tool.y;
++
++	thp_rotate_pen(t, &x, &y);
+ 
+ 	for (i = 0; i < THP_PEN_BUTTONS; i++) {
+ 		const struct thp_pen_button *b = &d->buttons[i];
+@@ -636,8 +682,8 @@ static void thp_report_pen(struct thp *t, const struct thp_pen_data *d)
+ 		    test_bit(b->key, in->keybit))
+ 			input_report_key(in, b->key, b->status == THP_PEN_BUTTON_PRESS);
+ 	}
+-	input_report_abs(in, ABS_X, d->tool.x);
+-	input_report_abs(in, ABS_Y, d->tool.y);
++	input_report_abs(in, ABS_X, x);
++	input_report_abs(in, ABS_Y, y);
+ 	input_report_abs(in, ABS_PRESSURE, d->tool.pressure);
+ 	input_report_abs(in, ABS_TILT_X, d->tool.tilt_x);
+ 	input_report_abs(in, ABS_TILT_Y, d->tool.tilt_y);
+@@ -909,6 +955,32 @@ static ssize_t touch_window_show(struct device *dev,
+ }
+ static DEVICE_ATTR(touch_window, 0600, touch_window_show, NULL);
+ 
++/*
++ * Current display orientation, written by matepad-volkeys:
++ * 0 = right-up (default landscape), 1 = 90 CW, 2 = 180, 3 = 90 CCW.
++ * The finger coordinates are transformed by Mutter, but the M-Pencil is a
++ * tablet tool and Mutter does not apply the output transform to it, so the
++ * pen is rotated here.
++ */
++static ssize_t rotation_show(struct device *dev,
++			     struct device_attribute *attr, char *buf)
++{
++	return sysfs_emit(buf, "%u\n", g_thp->rotation);
++}
++
++static ssize_t rotation_store(struct device *dev,
++			      struct device_attribute *attr,
++			      const char *buf, size_t count)
++{
++	unsigned int v;
++
++	if (kstrtouint(buf, 10, &v) || v > 3)
++		return -EINVAL;
++	g_thp->rotation = v;
++	return count;
++}
++static DEVICE_ATTR_RW(rotation);
++
+ static struct attribute *thp_sysfs_attrs[] = {
+ 	&dev_attr_touch_chip_info.attr,
+ 	&dev_attr_thp_status.attr,
+@@ -916,6 +988,7 @@ static struct attribute *thp_sysfs_attrs[] = {
+ 	&dev_attr_hostprocessing.attr,
+ 	&dev_attr_daemon_version.attr,
+ 	&dev_attr_touch_window.attr,
++	&dev_attr_rotation.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(thp_sysfs);
+@@ -984,6 +1057,34 @@ static int thp_pen_register(struct thp *t)
+ 	return input_register_device(pen);
+ }
+ 
++/*
++ * Mutter only enables auto-rotation when it sees a SW_TABLET_MODE switch.
++ * The keyboard-dock hall sensor is disabled in the DT (rotation must keep
++ * working with the magnetic keyboard attached), so provide a switch that
++ * always reports tablet mode.
++ */
++static int thp_tabletmode_register(struct thp *t)
++{
++	struct input_dev *sw;
++	int ret;
++
++	sw = devm_input_allocate_device(&t->spi->dev);
++	if (!sw)
++		return -ENOMEM;
++	sw->name = "matepad-tabletmode";
++	__set_bit(EV_SW, sw->evbit);
++	__set_bit(SW_TABLET_MODE, sw->swbit);
++	t->tabletmode = sw;
++
++	ret = input_register_device(sw);
++	if (ret)
++		return ret;
++
++	input_report_switch(sw, SW_TABLET_MODE, 1);
++	input_sync(sw);
++	return 0;
++}
++
+ static int thp_probe(struct spi_device *spi)
+ {
+ 	struct device *dev = &spi->dev;
+@@ -1066,6 +1167,9 @@ static int thp_probe(struct spi_device *spi)
+ 	ret = thp_pen_register(t);
+ 	if (ret)
+ 		goto err;
++	ret = thp_tabletmode_register(t);
++	if (ret)
++		dev_warn(&spi->dev, "no virtual tablet mode switch: %d\n", ret);
+ 
+ 	t->thp_misc = (struct miscdevice){
+ 		.minor = MISC_DYNAMIC_MINOR, .name = "thp", .fops = &thp_fops,

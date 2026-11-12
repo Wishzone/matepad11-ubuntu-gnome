@@ -1,0 +1,13 @@
+#!/bin/sh
+# Keep the MatePad GNOME extensions available.
+#
+# GNOME Shell sets org.gnome.shell disable-user-extensions to true when it
+# enters a fault/safe path (and the greeter path can do the same).  That
+# removes every quick-settings extension, including the flashlight toggle.
+# This autostart helper runs after the session is up, re-enables user
+# extensions and enables the flashlight toggle.  gnome-extensions can load
+# an extension dynamically, so no session restart is needed.
+set -u
+
+gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null || true
+gnome-extensions enable matepad-flashlight@dby-w09 2>/dev/null || true

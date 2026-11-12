@@ -1,0 +1,11 @@
+Types: deb deb-src
+URIs: http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports
+Suites: resolute resolute-updates resolute-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb deb-src
+URIs: http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports
+Suites: resolute-security
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg

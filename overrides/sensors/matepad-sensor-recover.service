@@ -1,0 +1,12 @@
+[Unit]
+Description=MatePad: recover a stuck SLPI sensor PD
+Documentation=https://github.com/svesnav/linux-dby-w09
+After=multi-user.target
+Wants=matepad-sensord.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/matepad-sensor-recover
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+name: Source checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Check C helpers
+        run: |
+          gcc -O2 -Wall -Wextra -Werror -fsyntax-only \
+            overrides/touchscreen/matepad-touch-rightclick.c \
+            tests/touchscreen/touch_test.c
+      - name: Check shell syntax
+        run: |
+          bash -n scripts/*.sh configs/rootfs/*.sh tests/touchscreen/*.sh
+          sh -n overrides/backlight/matepad-system-sleep \
+            overrides/sensors/matepad-system-sleep

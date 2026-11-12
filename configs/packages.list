@@ -1,0 +1,106 @@
+# Packages installed in the Ubuntu 26.04 GNOME image.
+# One package per line; comments and blank lines are ignored.
+# Deliberately no snapd, firefox (snap), KDE/Plasma, SDDM or Maliit.
+
+# Ubuntu GNOME session and desktop
+ubuntu-desktop-minimal
+ubuntu-session
+gnome-shell
+gdm3
+gnome-shell-extension-ubuntu-dock
+gnome-shell-ubuntu-extensions
+yaru-theme-gnome-shell
+gnome-control-center
+gnome-settings-daemon
+gnome-keyring
+libpam-gnome-keyring
+gnome-terminal
+gnome-text-editor
+gnome-tweaks
+gnome-disk-utility
+gnome-calculator
+gnome-calendar
+gnome-clocks
+gnome-weather
+gnome-snapshot
+guvcview
+nautilus
+file-roller
+loupe
+epiphany-browser
+xournalpp
+ibus-libpinyin
+
+# Networking
+network-manager
+wpasupplicant
+iw
+rfkill
+ethtool
+bluez
+bluez-tools
+openssh-server
+
+# Audio / video
+pipewire
+pipewire-pulse
+wireplumber
+alsa-utils
+alsa-ucm-conf
+pavucontrol
+ffmpeg
+
+# Camera (libcamera + PipeWire + GStreamer preview)
+libcamera0.7
+libcamera-ipa
+libspa-0.2-libcamera
+gstreamer1.0-libcamera
+gstreamer1.0-tools
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+gstreamer1.0-plugins-bad
+gstreamer1.0-pipewire
+
+# Graphics
+mesa-utils
+mesa-vulkan-drivers
+vulkan-tools
+libgl1-mesa-dri
+
+# Firmware (Ubuntu split packages; DBY-specific Huawei blobs come from the tablet)
+linux-firmware
+linux-firmware-qualcomm-graphics
+linux-firmware-qualcomm-wireless
+linux-firmware-qualcomm-misc
+
+# Tablet / debugging / maintenance
+upower
+kmod
+i2c-tools
+libinput-tools
+util-linux-extra
+wireless-regdb
+evtest
+v4l-utils
+usbutils
+pciutils
+sudo
+systemd-timesyncd
+fonts-noto-cjk
+fonts-noto-color-emoji
+fonts-ubuntu
+python3-dbus
+python3-gi
+python3-numpy
+build-essential
+libsystemd-dev
+meson
+ninja-build
+git
+curl
+wget
+htop
+nano
+vim
+tmux
+file

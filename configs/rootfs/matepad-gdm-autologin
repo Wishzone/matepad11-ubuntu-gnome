@@ -1,0 +1,43 @@
+#!/bin/sh
+# The MatePad installer writes autologin into /etc/sddm.conf.d (its stock
+# image is Kubuntu). GDM 50 reads /etc/gdm3/custom.conf, so translate the
+# installer's choice once, before the display manager starts.
+set -eu
+
+conf=/etc/gdm3/custom.conf
+mkdir -p /etc/gdm3
+
+user=$(grep -h '^User=' /etc/sddm.conf.d/*.conf 2>/dev/null | tail -1 | cut -d= -f2- || true)
+enabled=false
+if [ -n "${user:-}" ] && id "$user" >/dev/null 2>&1; then
+	enabled=true
+fi
+
+python3 - "$conf" "$enabled" "${user:-}" <<'PY'
+import configparser, sys
+path, enabled, user = sys.argv[1], sys.argv[2] == "true", sys.argv[3]
+c = configparser.ConfigParser()
+c.optionxform = str
+c.read(path)
+if not c.has_section("daemon"):
+    c.add_section("daemon")
+c.set("daemon", "WaylandEnable", "true")
+c.set("daemon", "AutomaticLoginEnable", "true" if enabled else "false")
+if enabled:
+    c.set("daemon", "AutomaticLogin", user)
+elif c.has_option("daemon", "AutomaticLogin"):
+    c.remove_option("daemon", "AutomaticLogin")
+with open(path, "w") as f:
+    c.write(f)
+PY
+
+# GDM's Wayland greeter needs the same scale as the session on this panel.
+if [ -d /etc/gdm3 ]; then
+	cat > /etc/gdm3/greeter.dconf-defaults <<'EOF'
+[org/gnome/desktop/interface]
+text-scaling-factor=1.5
+scaling-factor=2
+[org/gnome/desktop/a11y/applications]
+screen-keyboard-enabled=true
+EOF
+fi

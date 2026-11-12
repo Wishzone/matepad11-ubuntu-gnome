@@ -1,0 +1,27 @@
+#!/bin/sh
+# "Restart to HarmonyOS" launcher for GNOME (zenity). The root helper is the
+# upstream script, which verifies the saved stock images before writing.
+set -u
+msg="The tablet will restart into HarmonyOS.
+
+To come back to Linux, open the Linux app in HarmonyOS, or run as root:
+su -c sh /cache/linux70/boot-linux.sh
+
+Save your work first."
+
+if command -v zenity >/dev/null 2>&1; then
+	zenity --question --title="Restart to HarmonyOS" --text="$msg" \
+		--ok-label="Restart to HarmonyOS" --cancel-label="Cancel" || exit 0
+else
+	kdialog --title "Restart to HarmonyOS" --warningcontinuecancel "$msg" \
+		--continue-label "Restart to HarmonyOS" || exit 0
+fi
+
+if out=$(pkexec /usr/local/sbin/matepad-boot-harmonyos 2>&1); then
+	exit 0
+fi
+if command -v zenity >/dev/null 2>&1; then
+	zenity --error --title="Restart to HarmonyOS" --text="Nothing was changed.\n\n$out"
+else
+	kdialog --title "Restart to HarmonyOS" --error "Nothing was changed.\n\n$out"
+fi

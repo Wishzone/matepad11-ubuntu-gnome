@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=MatePad GNOME extensions
+Comment=Keep the MatePad flashlight quick-setting enabled
+Exec=/usr/local/bin/matepad-gnome-extensions
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

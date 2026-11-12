@@ -1,0 +1,7 @@
+{
+  "uuid": "matepad-flashlight@dby-w09",
+  "name": "MatePad Flashlight",
+  "description": "Toggle the rear camera flash torch from the quick settings panel.",
+  "shell-version": ["50"],
+  "version": 1
+}

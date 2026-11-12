@@ -1,0 +1,48 @@
+#!/bin/sh
+# Recover the SLPI sensor PD when the SEE service (QRTR 400) does not come up.
+#
+# On some boots the SLPI remoteproc is running but the sensor PD never
+# advertises SEE service 400.  matepad-sensord then waits forever,
+# AccelerometerOrientation stays "undefined" and GNOME cannot rotate the
+# screen.  Restarting the SLPI remoteproc and the FastRPC/sensor daemons
+# recovers it.  This service runs after the desktop is up, so it never
+# delays boot.
+set -u
+
+log() { echo "matepad-sensor-recover: $*"; }
+
+# The sensor daemon logs this once the accelerometer stream is running.
+sensor_ok() {
+	journalctl -u matepad-sensord -b --no-pager 2>/dev/null |
+		grep -q 'accelerometer on'
+}
+
+# Wait up to 60 s for the normal boot path to finish.
+i=0
+while [ "$i" -lt 30 ]; do
+	if sensor_ok; then
+		log "accelerometer already running"
+		exit 0
+	fi
+	sleep 2
+	i=$((i + 1))
+done
+
+log "accelerometer not running; restarting the SLPI sensor PD"
+systemctl stop matepad-sensord matepad-volkeys hexagonrpcd-sdsp 2>/dev/null || true
+sleep 1
+echo stop > /sys/class/remoteproc/remoteproc0/state 2>/dev/null || true
+sleep 2
+echo start > /sys/class/remoteproc/remoteproc0/state 2>/dev/null || true
+sleep 8
+systemctl start hexagonrpcd-sdsp 2>/dev/null || true
+sleep 4
+systemctl start matepad-sensord 2>/dev/null || true
+
+sleep 5
+if sensor_ok; then
+	log "recovered"
+	exit 0
+fi
+log "still not running"
+exit 1

@@ -1,0 +1,19 @@
+diff --git a/configure-and-build.sh b/configure-and-build.sh
+index 0c76aee..52cc155 100644
+--- a/configure-and-build.sh
++++ b/configure-and-build.sh
+@@ -87,12 +87,12 @@ REGULATOR_QCOM_USB_VBUS DRM_MSM_DP
+ # mounted, and Bluetooth/PCI power control can only be modules here: all of
+ # the QCA6390 stack is installed on the card by build_modules.sh.
+ modules=(MHI_BUS QRTR QRTR_MHI ATH11K ATH11K_PCI POWER_SEQUENCING_QCOM_WCN
+-    PCI_PWRCTRL_PWRSEQ BT BT_HCIUART BT_QCA
++    PCI_PWRCTRL_PWRSEQ BT BT_HCIUART BT_QCA BT_RFCOMM
+     # the speaker link's codec stub (linux,spdif-dit); defconfig only had it
+     # through other SoCs' sound drivers
+     SND_SOC_SPDIF)
+ # Bool options inside those modules.
+-module_options=(BT_HCIUART_SERDEV BT_HCIUART_QCA)
++module_options=(BT_HCIUART_SERDEV BT_HCIUART_QCA BT_RFCOMM_TTY)
+ # Useful on USB-C host that defconfig leaves out: exFAT/NTFS cards and drives,
+ # USB Attached SCSI (fast USB SSDs and card readers).
+ extra_modules=(EXFAT_FS NTFS3_FS USB_UAS)

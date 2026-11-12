@@ -1,0 +1,8 @@
+--- a/drivers/media/i2c/gc08a3.c
++++ b/drivers/media/i2c/gc08a3.c
+@@
+ #define GC08A3_CHIP_ID 0x08a3
++#define GC8054_CHIP_ID 0x8054
+@@
+-	if (val != GC08A3_CHIP_ID) {
++	if (val != GC08A3_CHIP_ID && val != GC8054_CHIP_ID) {
